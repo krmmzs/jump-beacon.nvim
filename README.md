@@ -16,7 +16,7 @@ A simple Neovim plugin that adds a visual beacon effect to cursor jumps, helping
 
 ```lua
 {
-    'your-username/jump-beacon.nvim',
+    'krmmzs/jump-beacon.nvim',
     config = function()
         require('jump-beacon').setup()
     end
@@ -27,7 +27,7 @@ A simple Neovim plugin that adds a visual beacon effect to cursor jumps, helping
 
 ```lua
 use {
-    'your-username/jump-beacon.nvim',
+    'krmmzs/jump-beacon.nvim',
     config = function()
         require('jump-beacon').setup()
     end
@@ -37,7 +37,7 @@ use {
 ### Using [vim-plug](https://github.com/junegunn/vim-plug)
 
 ```vim
-Plug 'your-username/jump-beacon.nvim'
+Plug 'krmmzs/jump-beacon.nvim'
 
 lua << EOF
 require('jump-beacon').setup()
