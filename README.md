@@ -17,9 +17,12 @@ A simple Neovim plugin that adds a visual beacon effect to cursor jumps, helping
 ```lua
 {
     'krmmzs/jump-beacon.nvim',
-    config = function()
-        require('jump-beacon').setup()
-    end
+    opts = {
+        -- Default options (can be empty for defaults)
+        enable = true,
+        frequency = 8,
+        min_jump = 10,
+    }
 }
 ```
 
