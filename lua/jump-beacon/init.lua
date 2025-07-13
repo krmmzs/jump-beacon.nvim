@@ -63,11 +63,8 @@ local function setup_keymaps()
     -- Ctrl-I 在终端中经常被 Tab 占用，提供多种映射方案
     local function setup_jump_forward()
         local pos_before = api.nvim_win_get_cursor(0)
-        -- 直接调用跳转到新位置的功能
-        local ok = pcall(function()
-            -- 使用 Vim 原生的跳转前进命令
-            vim.cmd('normal! \9')  -- \9 是 Tab/Ctrl-I 的八进制
-        end)
+        -- 使用和 Ctrl-O 相同的模式
+        local ok = pcall(vim.cmd, 'execute "normal! \\<C-i>"')
         if ok then
             local pos_after = api.nvim_win_get_cursor(0)
             if pos_before[1] ~= pos_after[1] or pos_before[2] ~= pos_after[2] then
