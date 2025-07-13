@@ -60,18 +60,27 @@ local function setup_keymaps()
         end
     end, { desc = 'Jump back with beacon', silent = true })
 
-    vim.keymap.set('n', '<C-i>', function()
+    -- Ctrl-I 在终端中经常被 Tab 占用，提供多种映射方案
+    local function setup_jump_forward()
         local pos_before = api.nvim_win_get_cursor(0)
-        -- 使用官方文档推荐的方式
-        local ok = pcall(vim.cmd, 'execute "normal! \\<C-i>"')
+        -- 直接调用跳转到新位置的功能
+        local ok = pcall(function()
+            -- 使用 Vim 原生的跳转前进命令
+            vim.cmd('normal! \9')  -- \9 是 Tab/Ctrl-I 的八进制
+        end)
         if ok then
             local pos_after = api.nvim_win_get_cursor(0)
-            -- 只有位置真的变化了才显示beacon
             if pos_before[1] ~= pos_after[1] or pos_before[2] ~= pos_after[2] then
                 vim.defer_fn(beacon.show_at_cursor, 10)
             end
         end
-    end, { desc = 'Jump forward with beacon', silent = true })
+    end
+    
+    -- 尝试映射 Ctrl-I
+    vim.keymap.set('n', '<C-i>', setup_jump_forward, { desc = 'Jump forward with beacon', silent = true })
+    
+    -- 同时也映射 Tab 作为备选方案
+    vim.keymap.set('n', '<Tab>', setup_jump_forward, { desc = 'Jump forward with beacon (Tab)', silent = true })
 end
 
 -- 设置命令
