@@ -63,14 +63,17 @@ local function setup_keymaps()
     -- Ctrl-I 在终端中经常被 Tab 占用，提供多种映射方案
     local function setup_jump_forward()
         local pos_before = api.nvim_win_get_cursor(0)
-        -- 使用和 Ctrl-O 相同的模式
-        local ok = pcall(vim.cmd, 'execute "normal! \\<C-i>"')
-        if ok then
+        
+        -- 使用 nvim_feedkeys 发送原始字符，避免递归映射
+        api.nvim_feedkeys('\9', 'n', false)
+        
+        -- 延迟检查位置变化并显示beacon
+        vim.defer_fn(function()
             local pos_after = api.nvim_win_get_cursor(0)
             if pos_before[1] ~= pos_after[1] or pos_before[2] ~= pos_after[2] then
-                vim.defer_fn(beacon.show_at_cursor, 10)
+                beacon.show_at_cursor()
             end
-        end
+        end, 20)
     end
     
     -- 尝试映射 Ctrl-I
