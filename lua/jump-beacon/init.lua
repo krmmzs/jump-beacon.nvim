@@ -46,25 +46,30 @@ end
 -- 设置按键映射
 local function setup_keymaps()
     -- 重写ctrl-o和ctrl-i，在原功能基础上添加beacon
+    -- 基于官方文档的更优雅实现
     vim.keymap.set('n', '<C-o>', function()
-        -- 保存位置并执行跳转
         local pos_before = api.nvim_win_get_cursor(0)
-        pcall(vim.cmd, 'normal! \15')  -- \15 是 Ctrl-O
-        local pos_after = api.nvim_win_get_cursor(0)
-        -- 只有位置真的变化了才显示beacon
-        if pos_before[1] ~= pos_after[1] or pos_before[2] ~= pos_after[2] then
-            vim.defer_fn(beacon.show_at_cursor, 10)
+        -- 使用官方文档推荐的方式
+        local ok = pcall(vim.cmd, 'execute "normal! \\<C-o>"')
+        if ok then
+            local pos_after = api.nvim_win_get_cursor(0)
+            -- 只有位置真的变化了才显示beacon
+            if pos_before[1] ~= pos_after[1] or pos_before[2] ~= pos_after[2] then
+                vim.defer_fn(beacon.show_at_cursor, 10)
+            end
         end
     end, { desc = 'Jump back with beacon', silent = true })
 
     vim.keymap.set('n', '<C-i>', function()
-        -- 保存位置并执行跳转
         local pos_before = api.nvim_win_get_cursor(0)
-        pcall(vim.cmd, 'normal! \9')   -- \9 是 Ctrl-I (Tab)
-        local pos_after = api.nvim_win_get_cursor(0)
-        -- 只有位置真的变化了才显示beacon
-        if pos_before[1] ~= pos_after[1] or pos_before[2] ~= pos_after[2] then
-            vim.defer_fn(beacon.show_at_cursor, 10)
+        -- 使用官方文档推荐的方式
+        local ok = pcall(vim.cmd, 'execute "normal! \\<C-i>"')
+        if ok then
+            local pos_after = api.nvim_win_get_cursor(0)
+            -- 只有位置真的变化了才显示beacon
+            if pos_before[1] ~= pos_after[1] or pos_before[2] ~= pos_after[2] then
+                vim.defer_fn(beacon.show_at_cursor, 10)
+            end
         end
     end, { desc = 'Jump forward with beacon', silent = true })
 end
