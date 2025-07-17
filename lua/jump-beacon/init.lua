@@ -74,7 +74,7 @@ local function setup_autocmds()
     api.nvim_create_autocmd('CursorMoved', {
         group = augroup,
         callback = function()
-            -- State Machine: Cursor Position Tracking
+            -- State Machine: Cursor Position Tracking (Keyboard Navigation Only)
             -- 
             -- State = (last_line, last_col)
             -- Event: CursorMoved
@@ -92,9 +92,8 @@ local function setup_autocmds()
             --            │
             --            ▼
             --     ┌─────────────┐
-            --     │   Check:    │
-            --     │|new - old|  │
-            --     │>= min_jump  │
+            --     │   Mouse     │
+            --     │  Triggered? │
             --     └──────┬──────┘
             --            │
             --      ┌─────┴─────┐
@@ -102,12 +101,28 @@ local function setup_autocmds()
             --      ▼           ▼
             --   ┌─────┐     ┌─────┐
             --   │ YES │     │ NO  │
-            --   │Show │     │Skip │
+            --   │Skip │     │Check│
+            --   │Show │     │Jump │
             --   └─────┘     └─────┘
             --      │           │
-            --      └─────┬─────┘
-            --            │
-            --            ▼
+            --      │           ▼
+            --      │    ┌─────────────┐
+            --      │    │   Check:    │
+            --      │    │|new - old|  │
+            --      │    │>= min_jump  │
+            --      │    └──────┬──────┘
+            --      │           │
+            --      │     ┌─────┴─────┐
+            --      │     │           │
+            --      │     ▼           ▼
+            --      │  ┌─────┐     ┌─────┐
+            --      │  │ YES │     │ NO  │
+            --      │  │Show │     │Skip │
+            --      │  └─────┘     └─────┘
+            --      │     │           │
+            --      └─────┼─────┬─────┘
+            --            │     │
+            --            ▼     ▼
             --     ┌─────────────┐
             --     │Update State │
             --     │last_line =  │
@@ -117,6 +132,15 @@ local function setup_autocmds()
             local current_pos = api.nvim_win_get_cursor(0)
             local current_line = current_pos[1]
             local current_col = current_pos[2]
+
+            -- Skip beacon for mouse-triggered cursor movement if configured
+            -- User already knows cursor position when clicking with mouse
+            if config.options.ignore_mouse and vim.v.event and vim.v.event.mouse then
+                -- Update state but don't show beacon
+                last_line = current_line
+                last_col = current_col
+                return
+            end
 
             local jump_distance = math.abs(current_line - last_line)
 
