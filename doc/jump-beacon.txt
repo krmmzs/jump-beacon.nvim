@@ -1,0 +1,217 @@
+*jump-beacon.txt*    Visual beacon for cursor jumps in Neovim
+
+                                                               *jump-beacon.nvim*
+
+INTRODUCTION                                                   *jump-beacon-intro*
+
+A simple Neovim plugin that adds a visual beacon effect to cursor jumps,
+helping you quickly locate your cursor after large movements.
+
+Key features:
+- Visual beacon effect that gradually fades away
+- Automatic detection of large cursor jumps
+- Smart mouse detection (ignores mouse clicks by default)
+- Enhanced navigation for <C-o> and <C-i> jumps
+- Fully customizable appearance and behavior
+
+REQUIREMENTS                                              *jump-beacon-requirements*
+
+- Neovim 0.8.0+
+- No external dependencies
+
+INSTALLATION                                              *jump-beacon-installation*
+
+Using lazy.nvim: >
+    {
+        'krmmzs/jump-beacon.nvim',
+        opts = {
+            enable = true,
+            min_jump = 10,
+            ignore_mouse = true,
+        }
+    }
+<
+
+Using packer.nvim: >
+    use {
+        'krmmzs/jump-beacon.nvim',
+        config = function()
+            require('jump-beacon').setup()
+        end
+    }
+<
+
+SETUP                                                            *jump-beacon-setup*
+
+                                                      *jump-beacon.setup()*
+setup({config})
+    Initialize the plugin with optional configuration.
+
+    Parameters: ~
+        {config} (table|nil) Configuration options
+
+    Default configuration: >
+        {
+            enable = true,          -- Enable the plugin
+            frequency = 8,          -- Fade speed (higher = faster fade)
+            width = 40,             -- Maximum beacon width
+            timeout = 500,          -- Maximum display time (ms)
+            interval = 50,          -- Fade interval (ms)
+            min_jump = 10,          -- Minimum jump distance to trigger beacon
+            highlight = 'ErrorMsg', -- Highlight group for beacon color
+            auto_enable = true,     -- Auto-enable jump detection
+            ignore_mouse = true,    -- Ignore mouse-triggered cursor movements
+        }
+<
+
+CONFIGURATION                                               *jump-beacon-config*
+
+                                                      *jump-beacon-config-enable*
+enable (boolean, default: true)
+    Enable or disable the plugin globally.
+
+                                                   *jump-beacon-config-frequency*
+frequency (number, default: 8)
+    Controls how fast the beacon fades out. Higher values = faster fade.
+    Range: 1-100
+
+                                                      *jump-beacon-config-width*
+width (number, default: 40)
+    Maximum width of the beacon in characters.
+    Range: 1-200
+
+                                                    *jump-beacon-config-timeout*
+timeout (number, default: 500)
+    Maximum time the beacon will be displayed in milliseconds.
+    Range: 100-2000
+
+                                                   *jump-beacon-config-interval*
+interval (number, default: 50)
+    Time between fade animation frames in milliseconds.
+    Range: 10-200
+
+                                                   *jump-beacon-config-min-jump*
+min_jump (number, default: 10)
+    Minimum number of lines the cursor must jump to trigger a beacon.
+    Range: 1-50
+
+                                                  *jump-beacon-config-highlight*
+highlight (string, default: 'ErrorMsg')
+    Neovim highlight group used for the beacon color.
+
+                                                *jump-beacon-config-auto-enable*
+auto_enable (boolean, default: true)
+    Whether to automatically set up event listeners for jump detection.
+
+                                               *jump-beacon-config-ignore-mouse*
+ignore_mouse (boolean, default: true)
+    Whether to ignore mouse-triggered cursor movements. When true, clicking
+    with the mouse will not trigger a beacon since you already know where
+    you clicked.
+
+MOUSE DETECTION                                       *jump-beacon-mouse-detection*
+
+The plugin intelligently ignores mouse-triggered cursor movements by default.
+This feature works across all Neovim modes (Normal, Visual, Insert, Command-line).
+
+The plugin uses expression mappings to intercept mouse events and track their
+timestamps. When a cursor movement occurs within a short time window after a
+mouse click, the movement is considered mouse-triggered and the beacon is skipped.
+
+To disable mouse detection and show beacons for mouse clicks: >
+    require('jump-beacon').setup({
+        ignore_mouse = false,
+    })
+<
+
+COMMANDS                                                  *jump-beacon-commands*
+
+                                                             *:JumpBeacon*
+:JumpBeacon
+    Manually trigger a beacon at the current cursor position.
+
+                                                       *:JumpBeaconToggle*
+:JumpBeaconToggle
+    Toggle the beacon functionality on or off and display the current state.
+
+FUNCTIONS                                                *jump-beacon-functions*
+
+                                                  *jump-beacon.show_at_cursor()*
+show_at_cursor()
+    Show a beacon at the current cursor position.
+
+                                                           *jump-beacon.show()*
+show({line}, {col}, {width})
+    Show a beacon at a specific position.
+
+    Parameters: ~
+        {line}  (number) 0-based line number
+        {col}   (number) 0-based column number
+        {width} (number, optional) Beacon width (defaults to config.width)
+
+KEY MAPPINGS                                            *jump-beacon-keymappings*
+
+The plugin enhances these default Neovim mappings:
+
+<C-o>                                                    *jump-beacon-ctrl-o*
+    Jump to previous location with beacon effect.
+
+<C-i>                                                    *jump-beacon-ctrl-i*
+    Jump to next location with beacon effect.
+
+CUSTOMIZATION                                         *jump-beacon-customization*
+
+Custom beacon color: >
+    vim.cmd([[highlight JumpBeacon guibg=#FF6B6B]])
+<
+
+Faster fade animation: >
+    require('jump-beacon').setup({
+        frequency = 15,
+        interval = 30,
+    })
+<
+
+More sensitive detection: >
+    require('jump-beacon').setup({
+        min_jump = 5,
+    })
+<
+
+Show beacon for mouse clicks: >
+    require('jump-beacon').setup({
+        ignore_mouse = false,
+        min_jump = 5,
+    })
+<
+
+HIGHLIGHTS                                               *jump-beacon-highlights*
+
+JumpBeacon                                                      *hl-JumpBeacon*
+    Highlight group used for the beacon effect. Defaults to the 'ErrorMsg'
+    highlight group colors but can be customized.
+
+TROUBLESHOOTING                                     *jump-beacon-troubleshooting*
+
+Beacon not showing:
+- Check that `enable = true` in your configuration
+- Verify that your cursor jump exceeds the `min_jump` threshold
+- Ensure your Neovim version is 0.8.0 or higher
+
+Beacon showing for mouse clicks:
+- Set `ignore_mouse = true` in your configuration (this is the default)
+
+Performance issues:
+- Increase the `interval` value to reduce animation frequency
+- Increase the `frequency` value to make the beacon fade faster
+
+LICENSE                                                     *jump-beacon-license*
+
+MIT License - see LICENSE file for details.
+
+ABOUT                                                         *jump-beacon-about*
+
+Written by: krmmzs
+Repository: https://github.com/krmmzs/jump-beacon.nvim
+
+ vim:tw=78:et:ft=help:norl:
