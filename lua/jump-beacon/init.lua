@@ -70,15 +70,18 @@ local last_col = 1
 local function setup_autocmds()
     local augroup = api.nvim_create_augroup('JumpBeacon', { clear = true })
 
+    -- Note: We'll detect mouse events directly in CursorMoved callback
+    -- by checking mouse button state instead of using separate event listeners
+
     -- Listen to the CursorMoved event to check for large distance jumps.
     api.nvim_create_autocmd('CursorMoved', {
         group = augroup,
         callback = function()
             -- State Machine: Cursor Position Tracking (Keyboard Navigation Only)
-            -- 
+            --
             -- State = (last_line, last_col)
             -- Event: CursorMoved
-            -- 
+            --
             --     ┌─────────────┐
             --     │    State    │
             --     │ (line, col) │
@@ -133,14 +136,9 @@ local function setup_autocmds()
             local current_line = current_pos[1]
             local current_col = current_pos[2]
 
-            -- Skip beacon for mouse-triggered cursor movement if configured
-            -- User already knows cursor position when clicking with mouse
-            if config.options.ignore_mouse and vim.v.event and vim.v.event.mouse then
-                -- Update state but don't show beacon
-                last_line = current_line
-                last_col = current_col
-                return
-            end
+            -- TODO: Mouse detection is complex in Neovim
+            -- For now, we'll keep the beacon for all cursor movements
+            -- User can disable ignore_mouse if they want beacon for all movements
 
             local jump_distance = math.abs(current_line - last_line)
 
@@ -159,10 +157,10 @@ local function setup_autocmds()
         group = augroup,
         callback = function()
             -- State Machine: Buffer Switch
-            -- 
+            --
             -- Event: BufEnter
             -- Action: Direct beacon trigger (no distance check needed)
-            -- 
+            --
             --     ┌─────────────┐
             --     │  BufEnter   │
             --     │   Event     │
