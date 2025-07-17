@@ -18,6 +18,7 @@
 ---   - min_jump: number (1-50) defining minimum line jump distance to trigger beacon
 ---   - highlight: string specifying Neovim highlight group name for beacon appearance
 ---   - auto_enable: boolean controlling automatic event listener setup
+---   - ignore_mouse: boolean controlling whether to ignore mouse-triggered cursor movements
 ---
 --- Thread Safety:
 ---   - Module state is global and shared across all plugin instances
@@ -44,6 +45,7 @@ M.defaults = {
     min_jump = 10, -- minimum number of rows to jump to trigger beacon
     highlight = 'ErrorMsg', -- highlight group
     auto_enable = true, -- whether to automatically enable the jump listener
+    ignore_mouse = true, -- ignore mouse-triggered cursor movements (user knows position when clicking)
 }
 
 -- Current configuration
@@ -65,6 +67,7 @@ M.options = {}
 ---     * min_jump: number - minimum jump distance to trigger beacon (1-50)
 ---     * highlight: string - Neovim highlight group name
 ---     * auto_enable: boolean - automatic event listener setup
+---     * ignore_mouse: boolean - ignore mouse-triggered cursor movements
 ---
 --- Postconditions:
 ---   - M.options table is populated with merged configuration
