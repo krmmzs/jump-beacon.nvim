@@ -40,152 +40,238 @@ local M = {}
 local last_line = 1
 local last_col = 1
 
---- Set up autocmd event listeners for automatic beacon triggering.
+-- Mouse event detection state
+local mouse_last_clicked = 0  -- timestamp of last mouse click
+local mouse_detection_window = 100  -- milliseconds window for detecting mouse events
+
+--- Set up mouse event detection for ignoring mouse-triggered cursor movements.
 ---
 --- Purpose:
----   Creates autocmd group and event listeners to automatically detect
----   cursor jumps and trigger beacon effects without user intervention.
+---   Tracks mouse click events to distinguish between keyboard and mouse-triggered
+---   cursor movements, allowing the plugin to ignore mouse clicks when user
+---   already knows cursor position.
 ---
---- Autocmd Events:
----   - CursorMoved: Detects large line jumps during normal navigation
----   - BufEnter: Resets position tracking when switching buffers
+--- Implementation:
+---   - Uses expression mappings to intercept mouse events
+---   - Records timestamp of mouse clicks
+---   - Returns original event to preserve normal mouse behavior
+---   - Supports all modes: Normal, Visual, Insert, Command-line
 ---
---- Jump Detection Logic:
----   - Calculates absolute line distance from last tracked position
----   - Triggers beacon only if distance >= config.options.min_jump
----   - Updates tracking variables after each cursor movement
----
---- Position Tracking:
----   - Maintains last_line and last_col for jump distance calculation
----   - Resets tracking on buffer changes to prevent false positives
----
---- Side Effects:
----   - Modifies global last_line and last_col variables
----   - Creates autocmd group that persists until plugin reload
----   - May trigger beacon effects during normal editing
+--- Flow:
+---   1. User clicks mouse (e.g., <LeftMouse>)
+---   2. Our function is called, records mouse_last_clicked timestamp
+---   3. Function returns "<LeftMouse>"
+---   4. Neovim receives return value, executes original mouse click behavior
+---   5. Cursor movement triggers CursorMoved event
+---   6. In CursorMoved, check timestamp, detect mouse-triggered, skip beacon
 ---
 --- Example:
----   setup_autocmds()
----   -- Now jumping 15+ lines will automatically show beacon
-local function setup_autocmds()
+---   setup_mouse_detection()
+---   -- Now mouse clicks won't trigger beacon effects
+local function setup_mouse_detection()
+    if not config.options.ignore_mouse then
+        return
+    end
+
+    -- mouse_events triggers before
+    local mouse_events = {'<LeftMouse>', '<RightMouse>', '<MiddleMouse>'}
+    local modes = {'n', 'v', 'i', 'c'}  -- Normal, Visual, Insert, Command-line
+
+    for _, event in ipairs(mouse_events) do
+        for _, mode in ipairs(modes) do
+            vim.keymap.set(mode, event, function()
+                mouse_last_clicked = vim.loop.hrtime() / 1000000  -- Convert to milliseconds
+                -- expr=true mapping: return value becomes the actual key sequence to execute
+                return event
+            end, { buffer = false, silent = true, expr = true })
+        end
+    end
+end
+
+--- Check if cursor movement was triggered by mouse click.
+---
+--- Purpose:
+---   Determines if the current cursor movement was caused by a recent mouse click
+---   to avoid showing beacon when user already knows cursor position.
+---
+--- Returns:
+---   - true: if cursor movement was mouse-triggered
+---   - false: if cursor movement was keyboard-triggered
+---
+--- Logic:
+---   - Compares current time with last recorded mouse click timestamp
+---   - If within detection window, considers it mouse-triggered
+---   - Only active when ignore_mouse option is enabled
+local function is_mouse_triggered()
+    -- neovim triggers the mouse event(LeftMouse...) first and then triggers CursorMoved,
+    -- so just log the event when it is triggered and check the cursor state detection section.
+    if not config.options.ignore_mouse then
+        return false
+    end
+
+    local current_time = vim.loop.hrtime() / 1000000  -- Convert to milliseconds
+    local time_since_mouse_click = current_time - mouse_last_clicked
+
+    return time_since_mouse_click <= mouse_detection_window
+end
+
+local function record_cursor_pos(current_line, current_col)
+    last_line = current_line
+    last_col = current_col
+end
+
+--- Handle cursor movement detection and beacon triggering.
+---
+--- Purpose:
+---   Analyzes cursor position changes to detect significant jumps
+---   and triggers beacon effects for keyboard-initiated movements.
+---
+--- Logic:
+---   - Calculates jump distance from last tracked position
+---   - Ignores mouse-triggered movements if configured
+---   - Shows beacon only for jumps >= min_jump threshold
+---   - Updates position tracking state
+local function handle_cursor_moved()
+    -- State Machine: Cursor Position Tracking (Keyboard Navigation Only)
+    --
+    -- State = (last_line, last_col)
+    -- Event: CursorMoved
+    --
+    --     ┌─────────────┐
+    --     │    State    │
+    --     │ (line, col) │
+    --     └──────┬──────┘
+    --            │
+    --            ▼
+    --     ┌─────────────┐
+    --     │ CursorMoved │
+    --     │    Event    │
+    --     └──────┬──────┘
+    --            │
+    --            ▼
+    --     ┌─────────────┐
+    --     │   Mouse     │
+    --     │  Triggered? │
+    --     └──────┬──────┘
+    --            │
+    --      ┌─────┴─────┐
+    --      │           │
+    --      ▼           ▼
+    --   ┌─────┐     ┌─────┐
+    --   │ YES │     │ NO  │
+    --   │Skip │     │Check│
+    --   │Show │     │Jump │
+    --   └─────┘     └─────┘
+    --      │           │
+    --      │           ▼
+    --      │    ┌─────────────┐
+    --      │    │   Check:    │
+    --      │    │|new - old|  │
+    --      │    │>= min_jump  │
+    --      │    └──────┬──────┘
+    --      │           │
+    --      │     ┌─────┴─────┐
+    --      │     │           │
+    --      │     ▼           ▼
+    --      │  ┌─────┐     ┌─────┐
+    --      │  │ YES │     │ NO  │
+    --      │  │Show │     │Skip │
+    --      │  └─────┘     └─────┘
+    --      │     │           │
+    --      └─────┼─────┬─────┘
+    --            │     │
+    --            ▼     ▼
+    --     ┌─────────────┐
+    --     │Update State │
+    --     │last_line =  │
+    --     │current_line │
+    --     └─────────────┘
+    --
+    local current_pos = api.nvim_win_get_cursor(0)
+    local current_line = current_pos[1]
+    local current_col = current_pos[2]
+
+    -- Skip beacon if cursor movement was triggered by mouse
+    if is_mouse_triggered() then
+        record_cursor_pos(current_line, current_col)
+        return
+    end
+
+    local jump_distance = math.abs(current_line - last_line)
+    -- Only show beacon when jump distance exceeds minimum threshold
+    if jump_distance >= config.options.min_jump then
+        beacon.show_at_cursor()
+    end
+
+    record_cursor_pos(current_line, current_col)
+end
+
+--- Handle buffer enter event and reset position tracking.
+---
+--- Purpose:
+---   Triggers beacon when switching to a new buffer and resets
+---   position tracking to prevent false positives.
+---
+--- Logic:
+---   - Always shows beacon when entering new buffer
+---   - Updates position tracking to current cursor position
+---   - No distance check needed since user needs orientation
+local function handle_buffer_enter()
+    -- State Machine: Buffer Switch
+    --
+    -- Event: BufEnter
+    -- Action: Direct beacon trigger (no distance check needed)
+    --
+    --     ┌─────────────┐
+    --     │  BufEnter   │
+    --     │   Event     │
+    --     └──────┬──────┘
+    --            │
+    --            ▼
+    --     ┌─────────────┐
+    --     │ Direct Show │
+    --     │   Beacon    │
+    --     └──────┬──────┘
+    --            │
+    --            ▼
+    --     ┌─────────────┐
+    --     │Update State │
+    --     │  to new     │
+    --     │  position   │
+    --     └─────────────┘
+    --
+    beacon.show_at_cursor() -- when change buffer, show beacon directly
+
+    local pos = api.nvim_win_get_cursor(0)
+    record_cursor_pos(pos[1], pos[2])
+end
+
+--- Set up automatic beacon triggering through event listeners.
+---
+--- Purpose:
+---   Creates autocmd group and event listeners for automatic beacon detection.
+---   Delegates actual logic to dedicated handler functions.
+---
+--- Events:
+---   - CursorMoved: Handled by handle_cursor_moved()
+---   - BufEnter: Handled by handle_buffer_enter()
+---
+--- Example:
+---   setup_automatic_detection()
+---   Now cursor movements and buffer switches trigger beacon
+local function setup_automatic_detection()
     local augroup = api.nvim_create_augroup('JumpBeacon', { clear = true })
 
-    -- Note: We'll detect mouse events directly in CursorMoved callback
-    -- by checking mouse button state instead of using separate event listeners
-
-    -- Listen to the CursorMoved event to check for large distance jumps.
+    -- Listen to the CursorMoved event to check for large distance jumps
     api.nvim_create_autocmd('CursorMoved', {
         group = augroup,
-        callback = function()
-            -- State Machine: Cursor Position Tracking (Keyboard Navigation Only)
-            --
-            -- State = (last_line, last_col)
-            -- Event: CursorMoved
-            --
-            --     ┌─────────────┐
-            --     │    State    │
-            --     │ (line, col) │
-            --     └──────┬──────┘
-            --            │
-            --            ▼
-            --     ┌─────────────┐
-            --     │ CursorMoved │
-            --     │    Event    │
-            --     └──────┬──────┘
-            --            │
-            --            ▼
-            --     ┌─────────────┐
-            --     │   Mouse     │
-            --     │  Triggered? │
-            --     └──────┬──────┘
-            --            │
-            --      ┌─────┴─────┐
-            --      │           │
-            --      ▼           ▼
-            --   ┌─────┐     ┌─────┐
-            --   │ YES │     │ NO  │
-            --   │Skip │     │Check│
-            --   │Show │     │Jump │
-            --   └─────┘     └─────┘
-            --      │           │
-            --      │           ▼
-            --      │    ┌─────────────┐
-            --      │    │   Check:    │
-            --      │    │|new - old|  │
-            --      │    │>= min_jump  │
-            --      │    └──────┬──────┘
-            --      │           │
-            --      │     ┌─────┴─────┐
-            --      │     │           │
-            --      │     ▼           ▼
-            --      │  ┌─────┐     ┌─────┐
-            --      │  │ YES │     │ NO  │
-            --      │  │Show │     │Skip │
-            --      │  └─────┘     └─────┘
-            --      │     │           │
-            --      └─────┼─────┬─────┘
-            --            │     │
-            --            ▼     ▼
-            --     ┌─────────────┐
-            --     │Update State │
-            --     │last_line =  │
-            --     │current_line │
-            --     └─────────────┘
-            --
-            local current_pos = api.nvim_win_get_cursor(0)
-            local current_line = current_pos[1]
-            local current_col = current_pos[2]
-
-            -- TODO: Mouse detection is complex in Neovim
-            -- For now, we'll keep the beacon for all cursor movements
-            -- User can disable ignore_mouse if they want beacon for all movements
-
-            local jump_distance = math.abs(current_line - last_line)
-
-            -- Only show beacon when jump distance exceeds minimum threshold
-            if jump_distance >= config.options.min_jump then
-                beacon.show_at_cursor()
-            end
-
-            last_line = current_line
-            last_col = current_col
-        end,
+        callback = handle_cursor_moved,
     })
 
     -- Listen to BufEnter event to reset position tracking
     api.nvim_create_autocmd('BufEnter', {
         group = augroup,
-        callback = function()
-            -- State Machine: Buffer Switch
-            --
-            -- Event: BufEnter
-            -- Action: Direct beacon trigger (no distance check needed)
-            --
-            --     ┌─────────────┐
-            --     │  BufEnter   │
-            --     │   Event     │
-            --     └──────┬──────┘
-            --            │
-            --            ▼
-            --     ┌─────────────┐
-            --     │ Direct Show │
-            --     │   Beacon    │
-            --     └──────┬──────┘
-            --            │
-            --            ▼
-            --     ┌─────────────┐
-            --     │Update State │
-            --     │  to new     │
-            --     │  position   │
-            --     └─────────────┘
-            --
-            beacon.show_at_cursor() -- when change buffer, show beacon directly
-
-            -- update pos of cursor of state
-            local pos = api.nvim_win_get_cursor(0)
-            last_line = pos[1]
-            last_col = pos[2]
-        end,
+        callback = handle_buffer_enter,
     })
 end
 
@@ -255,9 +341,6 @@ local function setup_keymaps()
 
     -- Try to map Ctrl-I
     vim.keymap.set('n', '<C-i>', setup_jump_forward, { desc = 'Jump forward with beacon', silent = true })
-
-    -- Also map Tab as fallback option
-    vim.keymap.set('n', '<Tab>', setup_jump_forward, { desc = 'Jump forward with beacon (Tab)', silent = true })
 end
 
 --- Set up user commands for manual beacon control.
@@ -346,9 +429,10 @@ function M.setup(opts)
     -- Initialize beacon rendering system
     beacon.setup()
 
-    -- Set up autocmds for automatic jump detection (if auto mode is enabled)
+    -- Set up mouse detection and automatic jump detection (if auto mode is enabled)
     if config.options.auto_enable then
-        setup_autocmds()
+        setup_mouse_detection()
+        setup_automatic_detection()
     end
 
     -- Set up enhanced key mappings
