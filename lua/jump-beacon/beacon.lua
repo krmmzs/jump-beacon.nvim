@@ -6,39 +6,46 @@ local M = {}
 
 -- 设置beacon高亮
 local function setup_highlight()
-    vim.cmd([[
-        highlight default JumpBeacon guibg=#FF6B6B guifg=NONE ctermbg=203 ctermfg=NONE
-    ]])
+    -- vim.cmd([[
+    --     highlight default JumpBeacon guibg=#FF6B6B guifg=NONE ctermbg=203 ctermfg=NONE
+    -- ]])
+    vim.api.nvim_set_hl(0, 'JumpBeacon', {
+        bg = '#FF6B6B',
+        fg = 'NONE',
+        ctermbg = 203,
+        ctermfg = 'NONE',
+        default = true
+    })
 end
 
 -- 创建beacon效果
 function M.show(line, col, width)
     local opts = config.options
     if not opts.enable then return end
-    
+
     local current_win = api.nvim_get_current_win()
     local current_buf = api.nvim_get_current_buf()
-    
+
     -- 确保参数有效
     line = line or 0
     col = col or 0
     width = width or opts.width
-    
+
     -- 获取当前行内容，调整beacon宽度
     local ok, line_content = pcall(api.nvim_buf_get_lines, current_buf, line, line + 1, false)
     if ok and line_content[1] then
         width = math.min(width, math.max(#line_content[1], 10))
     end
-    
+
     -- 创建临时缓冲区
     local buf = api.nvim_create_buf(false, true)
     api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
     api.nvim_buf_set_option(buf, 'filetype', 'beacon')
-    
+
     -- 填充缓冲区内容
     local content = string.rep(' ', width)
     api.nvim_buf_set_lines(buf, 0, -1, false, { content })
-    
+
     -- 创建浮动窗口
     local win_opts = {
         relative = 'win',
@@ -55,19 +62,19 @@ function M.show(line, col, width)
         style = 'minimal',
         zindex = 50,
     }
-    
+
     local ok_win, winid = pcall(api.nvim_open_win, buf, false, win_opts)
     if not ok_win then
         return
     end
-    
+
     -- 设置窗口选项
     vim.wo[winid].winblend = 0
     vim.wo[winid].winhighlight = 'Normal:JumpBeacon'
-    
+
     -- 创建渐变效果定时器
     local timer = uv.new_timer()
-    
+
     timer:start(0, opts.interval, vim.schedule_wrap(function()
         -- 检查窗口是否仍然有效
         if not api.nvim_win_is_valid(winid) then
@@ -77,11 +84,11 @@ function M.show(line, col, width)
             end
             return
         end
-        
+
         -- 增加透明度
         local current_blend = vim.wo[winid].winblend or 0
         local new_blend = current_blend + opts.frequency
-        
+
         if new_blend >= 100 then
             -- 完全透明，关闭窗口
             if timer and not timer:is_closing() then
@@ -95,7 +102,7 @@ function M.show(line, col, width)
             vim.wo[winid].winblend = new_blend
         end
     end))
-    
+
     -- 安全保护：timeout后强制关闭
     vim.defer_fn(function()
         if timer and not timer:is_closing() then

@@ -1,5 +1,5 @@
 -- jump-beacon.nvim - Beacon effect for cursor jumps
--- 防止重复加载
+-- Preventing duplicate loads
 if vim.g.loaded_jump_beacon then
     return
 end
