@@ -6,6 +6,7 @@ A simple Neovim plugin that adds a visual beacon effect to cursor jumps, helping
 
 - 🎯 **Visual beacon** - Red highlight that gradually fades away
 - 🚀 **Auto-detection** - Automatically shows beacon on large cursor jumps
+- 🖱️ **Smart mouse detection** - Ignores mouse clicks (you already know where you clicked!)
 - ⌨️ **Enhanced navigation** - Adds beacon to `<C-o>` and `<C-i>` jumps
 - 🎨 **Customizable** - Configure colors, timing, and trigger sensitivity
 - 🪶 **Lightweight** - Minimal performance impact
@@ -22,6 +23,7 @@ A simple Neovim plugin that adds a visual beacon effect to cursor jumps, helping
         enable = true,
         frequency = 8,
         min_jump = 10,
+        ignore_mouse = true,  -- Don't show beacon for mouse clicks
     }
 }
 ```
@@ -61,6 +63,7 @@ require('jump-beacon').setup({
     min_jump = 10,          -- Minimum jump distance to trigger beacon
     highlight = 'ErrorMsg', -- Highlight group for beacon color
     auto_enable = true,     -- Auto-enable jump detection
+    ignore_mouse = true,    -- Ignore mouse-triggered cursor movements
 })
 ```
 
@@ -77,8 +80,11 @@ vim.cmd([[highlight JumpBeacon guibg=#YOUR_COLOR]])
 ### Automatic
 
 The plugin automatically shows a beacon when:
-- Cursor jumps more than `min_jump` lines (default: 10)
+- Cursor jumps more than `min_jump` lines (default: 10) via keyboard
 - Using `<C-o>` (jump back) or `<C-i>` (jump forward)
+- Switching between buffers
+
+**Note:** Mouse clicks are intelligently ignored by default since you already know where you clicked!
 
 ### Manual
 
@@ -109,6 +115,24 @@ The plugin enhances these default mappings:
 - `:JumpBeacon` - Manually trigger beacon at cursor
 - `:JumpBeaconToggle` - Toggle beacon on/off
 
+## 🖱️ Mouse Detection
+
+By default, the plugin intelligently ignores mouse-triggered cursor movements since you already know where you clicked. This feature works across all Neovim modes (Normal, Visual, Insert, Command-line).
+
+### Disable mouse detection
+
+If you want the beacon to show for mouse clicks too:
+
+```lua
+require('jump-beacon').setup({
+    ignore_mouse = false,  -- Show beacon for mouse clicks
+})
+```
+
+### How it works
+
+The plugin uses expression mappings to intercept mouse events and track their timestamps. When a cursor movement occurs within a short time window after a mouse click, the movement is considered mouse-triggered and the beacon is skipped.
+
 ## 🎨 Customization Examples
 
 ### Different colors
@@ -138,6 +162,15 @@ require('jump-beacon').setup({
 ```lua
 require('jump-beacon').setup({
     min_jump = 5,  -- Trigger on smaller jumps
+})
+```
+
+### Show beacon for mouse clicks
+
+```lua
+require('jump-beacon').setup({
+    ignore_mouse = false,  -- Also show beacon for mouse clicks
+    min_jump = 5,          -- More sensitive detection
 })
 ```
 
